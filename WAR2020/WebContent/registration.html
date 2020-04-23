@@ -4,24 +4,22 @@
 	<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 	<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 	<link rel="stylesheet" href="login.css">
-	<script src="./js/login.js"></script>
+	<script src="./js/registration.js"></script>
 	
 	<!------ Include the above in your HEAD tag ---------->
 </head>
 <body>
 	<div class="wrapper fadeInDown">
 	  <div id="formContent">
-	    <!-- Tabs Titles -->
-	
-	    <!-- Login Form -->
-	    <form id="loginForm">
+	    <form id="registrationForm">
 	      <input type="text" id="username" class="fadeIn second" name="username" placeholder="Username">
 	      <input type="password" id="password" class="fadeIn third" name="password" placeholder="Password">
-	      <input type="submit" class="fadeIn fourth" value="Log In">
+	      <input type="password" id="repeatPassword" class="fadeIn third" name="repeatPassword" placeholder="Repeat password">
+	      <input type="submit" id="registerBtn" class="fadeIn fourth" value="Register">
 	    </form>
 	
 	    <div id="formFooter">
-	      <a class="underlineHover" href="registration.html">Don't have an account? Register.</a>
+	      <a class="underlineHover" href="login.html">Already have an account? Log in.</a>
 	    </div>
 	
 	  </div>

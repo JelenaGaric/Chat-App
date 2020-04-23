@@ -55,6 +55,7 @@ img{ max-width:100%;}
   border-bottom: 1px solid #c4c4c4;
   margin: 0;
   padding: 18px 16px 10px;
+  cursor: pointer;
 }
 .inbox_chat { height: 550px; overflow-y: scroll;}
 

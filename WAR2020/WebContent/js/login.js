@@ -5,16 +5,18 @@ $(document).ready(()=> {
 		
 		let username=$('#username').val();
 		let password=$('#password').val();
-		
-		console.log('username', username);
-		console.log('password', password);
 	
 		$.post({
-			url: 'rest/chat/login',
+			url: 'rest/chat/users/login',
 			data: JSON.stringify({username, password}),
 			contentType: 'application/json',
-			success: function() {
-				window.location='./index.html';	
+			success: function(user) {
+				window.localStorage.setItem('loggedIn', JSON.stringify(user));
+				
+				if(user.role == "ADMIN")
+					window.location='./adminHomePage.html';
+				else if(user.role == "USER")
+					window.location='./index.html';	
 			},
 			error: function() {
 				alert('Pogresno korisnicko ime ili sifra!');

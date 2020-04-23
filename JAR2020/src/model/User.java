@@ -1,6 +1,7 @@
 package model;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 
 public class User implements Serializable {
 
@@ -11,7 +12,8 @@ public class User implements Serializable {
 	private Long id;
 	private String username;
 	private String password;
-
+	private ROLE role;
+	private ArrayList<Message> msgs = new ArrayList<>();
 	
 	public Long getId() {
 		return id;
@@ -36,23 +38,40 @@ public class User implements Serializable {
 	public void setPassword(String password) {
 		this.password = password;
 	}
+
+
+	public ROLE getRole() {
+		return role;
+	}
+
+	public void setRole(ROLE role) {
+		this.role = role;
+	}
+
 	
-	public User(Long id, String username, String password) {
+	public ArrayList<Message> getMsgs() {
+		return msgs;
+	}
+
+	public void setMsgs(ArrayList<Message> msgs) {
+		this.msgs = msgs;
+	}
+
+	public User(Long id, String username, String password, ROLE role) {
 		super();
 		this.id = id;
 		this.username = username;
 		this.password = password;
+		this.role = role;
 	}
 
 	@Override
 	public String toString() {
-		return "User:" + username;
+		return "User: " + username;
 	}
 
 	public User() {
 		
 	}
-	
-	
 
 }
