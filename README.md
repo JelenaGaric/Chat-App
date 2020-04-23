@@ -7,3 +7,13 @@ Kao admin dobijate (zasad) samo informacije o ulogovanim i registrovanim korisni
 Kao user mozete slati poruku na grupni chat (svima) i pojedinacnom korisniku.
 Kada se ulogujete kao user, mozda je potreban refresh stranice da ocita sve ulogovane korisnike sa strane, ili je potrebno da se ulogujete iz drugog browsera.
 Omogucena je komunikacija putem web socketa.
+
+
+Informacije o korisnicima:
+{"id":1,"username":"admin","password":"admin","role":"ADMIN"}
+{"id":2,"username":"user","password":"user","role":"USER"}
+{"id":3,"username":"proba","password":"proba","role":"USER"}
+{"id":4,"username":"user1","password":"user","role":"USER"}
+{"id":6,"username":"user2","password":"user","role":"USER"}
+{"id":7,"username":"user3","password":"user","role":"USER"}
+{"id":8,"username":"user4","password":"user","role":"USER"}
