@@ -8,6 +8,7 @@ Kao user mozete slati poruku na grupni chat (svima) i pojedinacnom korisniku.
 Kada se ulogujete kao user, mozda je potreban refresh stranice da ocita sve ulogovane korisnike sa strane, ili je potrebno da se ulogujete iz drugog browsera.
 Omogucena je komunikacija putem web socketa.
 
+Da bi ObjectMapper (za konverziju iz JSONa i obrnuto) radio, potrebno je u WAR i JAR, u build path, u libraries dodati jackson core i jackson databind 2.1.1 jarove.
 
 Informacije o korisnicima:
 {"id":1,"username":"admin","password":"admin","role":"ADMIN"}
