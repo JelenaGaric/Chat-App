@@ -3,9 +3,11 @@ package ws;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
 import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
+import javax.websocket.EncodeException;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -60,15 +62,16 @@ public class WSEndPoint {
 		try {
 			msg = mapper.readValue(message, Message.class);
 			if(msg.getRecieverId().equals("all")) {
-				//slanje poruke svima
-				try {
-					for(Session s: sessions.values()) {
-						System.out.println("WSEndPoint: "+msg.getText());
-						s.getBasicRemote().sendText(msg.getText());
-					}
-				} catch (IOException e){
-					e.printStackTrace();
+				//zatvori sesiju ako je logout
+				if(msg.getText().startsWith("[System]:logged out")){
+					System.out.println("Prije brisanja: " + sessions.size());
+					close(sessions.get(new Long(msg.getSenderId())));
+					System.out.println("Nakon brisanja: " + sessions.size());
+					sendToAll(msg.getText());
+					return;
 				}
+				//slanje poruke svima
+				sendToAll(msg.getText());
 			} else {
 				//slanje poruke jednom useru
 				try {
@@ -85,6 +88,17 @@ public class WSEndPoint {
 		}
 	}
 	
+	public void sendToAll(String text) {
+		try {
+			for(Session s: sessions.values()) {
+				System.out.println("WSEndPoint: "+ text);
+				s.getBasicRemote().sendText(text);
+			}
+		} catch (IOException e){
+			e.printStackTrace();
+		}
+	}
+	
 //	@OnMessage
 //	public void echoTextMessage(Long userId, String msg) {
 //		try {
@@ -98,7 +112,22 @@ public class WSEndPoint {
 	
 	@OnClose
 	public void close(Session session) {
-		sessions.remove(session);
+		// Get the iterator over the HashMap 
+        Iterator<HashMap.Entry<Long, Session> > iterator = sessions.entrySet().iterator(); 
+  
+        // Iterate over the HashMap 
+        while (iterator.hasNext()) { 
+        	// Get the entry at this iteration 
+        	HashMap.Entry<Long, Session> entry = iterator.next(); 
+        	// Check if this value is the required value 
+            if (session.equals(entry.getValue())) { 
+            	// Remove this entry from HashMap 
+                iterator.remove(); 
+            } 
+        } 
+  
+        // Print the modified HashMap 
+        System.out.println("Modified HashMap: " + sessions); 
 	}
 	
 	@OnError

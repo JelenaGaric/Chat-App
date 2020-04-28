@@ -24,8 +24,9 @@ $(document).ready(()=> {
 			success: function() {
 				window.location='./login.html';	
 			},
-			error: function() {
-				alert('Username is taken!');
+			error: function(response) {
+				console.log(JSON.stringify(response));
+				alert(response.responseText);
 			}
 		});
 		

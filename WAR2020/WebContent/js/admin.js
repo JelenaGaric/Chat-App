@@ -1,4 +1,18 @@
+var loggedIn = JSON.parse(window.localStorage.getItem('loggedIn'));
 $(document).ready(()=> {
+	
+	$("#logoutBtn").click(function(){
+		
+		$.ajax({
+			type:"DELETE",
+			url:"rest/chat/users/loggedIn/"+loggedIn.username,
+			contentType:"application/json",
+			complete: function(data){
+				console.log("sent logout to the server");
+				window.location = "login.html"
+			}
+		});
+	});
 	
 	$.get({
 		url:"rest/chat/users/loggedIn",

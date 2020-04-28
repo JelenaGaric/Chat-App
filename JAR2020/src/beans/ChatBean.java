@@ -59,7 +59,7 @@ public class ChatBean {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response login(User u) {
 		System.out.println("Tried to log in - user: " + u.getUsername());
-			
+		
 		try{
 			HashMap<Long, User> users = loadUsers();
 			for(User user: users.values()) {
@@ -67,12 +67,27 @@ public class ChatBean {
 					if(u.getPassword().equals(user.getPassword())) {
 						for(User loggedInUser : loggedInUsers) {
 							if(user.getId().equals(loggedInUser.getId())) {
+								System.out.println("Already logged in: " + loggedInUser.getUsername());
 								//vec je ulogovan , samo nastavi
 								return Response.ok(user, MediaType.APPLICATION_JSON).build();
 							}
 						}
 						
 						loggedInUsers.add(user);
+						
+						if(loggedInUsers.size()==0) {
+							System.out.println("No logged in users.");
+						}
+						for(User us: loggedInUsers) {
+							System.out.println("logged in "+us.getUsername());
+						}
+						
+						Message loginMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged in[" + String.valueOf(user.getId())+"]");
+						ObjectMapper mapper = new ObjectMapper();
+						String loginJson = mapper.writeValueAsString(loginMsg);
+						//slanje poruke svim sessionima preko mdb da se neko novi ulogoao
+						sendMessage(loginJson);
+						
 						return Response.ok(user, MediaType.APPLICATION_JSON).build();
 					} else {
 						return Response.status(400).build();
@@ -102,13 +117,14 @@ public class ChatBean {
 			for(User user: users.values()) {
 				if(u.getUsername().equals(user.getUsername())) {
 					//vec postoji
-					return Response.status(400).build();
+					return Response.status(Response.Status.BAD_REQUEST).entity("Username is taken.").build();
 				}
 			}
+			
 			u.setRole(ROLE.USER);
 			u.setId(new Long(users.size()+1));
-			System.out.println("aa" +new Long(users.size()+1));
 			users.put(new Long(users.size()+1), u);
+			
 			try{
 				saveUsers(users);
 				return Response.status(200).build();
@@ -118,6 +134,7 @@ public class ChatBean {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+
 		return Response.status(400).build();
 	}
 	
@@ -134,7 +151,21 @@ public class ChatBean {
 			}
 		}
 		try{
+			System.out.println("izlogovao se " + user.getUsername());
+			Message loginMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged out[" + String.valueOf(user.getId())+"]");
 			loggedInUsers.remove(user);
+			ObjectMapper mapper = new ObjectMapper();
+			String logoutJson = mapper.writeValueAsString(loginMsg);
+			//slanje poruke svim sessionima preko mdb da se neko izlogovao
+			sendMessage(logoutJson);
+			
+			if(loggedInUsers.size()==0) {
+				System.out.println("No logged in users.");
+			}
+			for(User u: loggedInUsers) {
+				System.out.println("logged in: " + u.getUsername());
+			}
+			
 		}catch(Exception e){
 			e.printStackTrace();
 			return Response.status(400).build();
@@ -164,8 +195,22 @@ public class ChatBean {
 	@Path("/messages/all")
 	@Produces(MediaType.TEXT_PLAIN)
 	public String post(String text) {
-		System.out.println("Recieved message: " + text);
-		
+		System.out.println("Recieved message (for all): " + text);
+		sendMessage(text);
+		return "OK";
+	}
+	
+	@POST
+	@Path("/messages/toUser")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String sendMessageToUser(String msg) {
+		System.out.println("Recieved message: " + msg);
+		sendMessage(msg);
+		return "OK";
+	}
+	
+	//******************************************* Slanje poruke MDB-u *******************************************
+	private void sendMessage(String text) {
 		try {
 			QueueConnection connection = (QueueConnection) connectionFactory.createConnection("guest", "guest.guest.1");
 			QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -176,42 +221,32 @@ public class ChatBean {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
-		return "OK";
 	}
 	
-	@POST
-	@Path("/messages/toUser")
-	@Produces(MediaType.TEXT_PLAIN)
-	public String sendMsgToUser(String msg) {
-//		System.out.println("Recieved message: " + msg.getText() +" for: "+ msg.getRecieverId() +" from: "+ msg.getSenderId());
-		System.out.println("Recieved message: " + msg);
-
-		try {
-			QueueConnection connection = (QueueConnection) connectionFactory.createConnection("guest", "guest.guest.1");
-			QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
-			QueueSender sender = session.createSender(queue);
-			TextMessage message = session.createTextMessage();
-			message.setText(msg);
-			sender.send(message);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		return "OK";
-	}
 	
 	//******************************************* Ucitavanje i cuvanje u "bazu" *******************************************
 	private HashMap<Long, User> loadUsers() {
 			
 			HashMap<Long, User> users = new HashMap<Long, User>();
 		
-			String path = "D:\\agentske tehnologije\\eclipse-ws\\JAR2020\\src\\baza.txt";
+			//String path = "D:\\agentske tehnologije\\eclipse-ws\\JAR2020\\src\\baza.txt";
+			 
+			String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "baza.txt";
 			
+			File file = new File(path);
+			if(!file.exists())
+			{
+				try {
+					file.createNewFile();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 			BufferedReader in = null;
 			try
 			{
-				File file = new File(path);
+				file = new File(path);
 				
 				in = new BufferedReader(new FileReader(file));
 				ObjectMapper mapper = new ObjectMapper();
@@ -242,7 +277,10 @@ public class ChatBean {
 			
 	public void saveUsers(HashMap<Long, User> users) {
 		{
-			String path = "D:\\agentske tehnologije\\eclipse-ws\\JAR2020\\src\\baza.txt";
+			//String path = "D:\\agentske tehnologije\\eclipse-ws\\JAR2020\\src\\baza.txt";
+			
+			String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "baza.txt";
+			
 			
 			File file = new File(path);
 			if(!file.exists())

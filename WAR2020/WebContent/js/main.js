@@ -1,27 +1,16 @@
 var socket;
 var loggedIn = JSON.parse(window.localStorage.getItem('loggedIn'));
+var loggedInUsers = [];
+var previousLoggedInUsers = [];
 var host="ws://localhost:8080/WAR2020/ws/"+loggedIn.id;
+
 $(document).ready(function(){
 	
 	generateChats()
 	
 	console.log(window.localStorage.getItem('loggedIn'));
+	
 
-	makePostBtnForAll();
-	
-	$("#logoutBtn").click(function(){
-		
-		$.ajax({
-			type:"DELETE",
-			url:"rest/chat/users/loggedIn/"+loggedIn.username,
-			contentType:"application/json",
-			complete: function(data){
-				console.log("sent logout to the server");
-				window.location = "login.html"
-			}
-		});
-	});
-	
 	try{
 		socket = new WebSocket(host);
 		console.log("connect: Socket Status: "+socket.readyState);
@@ -31,15 +20,23 @@ $(document).ready(function(){
 			}
 		socket.onmessage = function(msg){
 			console.log("onmessage: Recieved: "+ msg.data);	
+			//osvjezenje liste ulogovanih
+			if(msg.data.startsWith("[System]") && (msg.data.includes("logged in") || msg.data.includes("logged out"))){
+				console.log("refresh");
+				generateChats();
 			}
+			if(msg.data.startsWith("[System]") && msg.data.includes("logged out")){
+				console.log("refresh");
+				generateChats();
+			}
+		}
 		socket.onclose = function(){
 			socket = null;
+			console.log("logout");
 			}
 		} catch (exception) {
 			console.log("Error " + exception);
 		}
-		
-	
 });
 
 
@@ -49,12 +46,23 @@ function generateChats(){
 		url:"rest/chat/users/loggedIn",
 		contentType:"application/json",
 		complete: function(data){
-			var loggedInUsers =data.responseJSON; 
+			for(let us of loggedInUsers){
+				previousLoggedInUsers.push(us.id);
+			}
+			//previousLoggedInUsers = loggedInUsers;
+			loggedInUsers = data.responseJSON; 
 			document.getElementById("numActive").innerHTML = "Active: " + loggedInUsers.length;
 			
 			for(let u of loggedInUsers){
-				console.log(u.username);
 				
+				console.log(u.username);
+				if(u.id == loggedIn.id){
+					continue;
+				}
+				if(previousLoggedInUsers.includes(u.id)){
+					continue;
+				}
+
 				var chatList = document.createElement("DIV");
 				chatList.id = u.id;
 				chatList.classList.add("chat_list");
@@ -111,6 +119,23 @@ function generateChats(){
 				inboxChat.appendChild(chatList);
 
 			}
+			
+
+			makePostBtnForAll();
+			
+			$("#logoutBtn").click(function(){
+				
+				$.ajax({
+					type:"DELETE",
+					url:"rest/chat/users/loggedIn/"+loggedIn.username,
+					contentType:"application/json",
+					complete: function(data){
+						console.log("sent logout to the server");
+						window.location = "login.html"
+					}
+				});
+			});
+			
 
 		}
 	});
