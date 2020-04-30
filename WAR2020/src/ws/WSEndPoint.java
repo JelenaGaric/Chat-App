@@ -58,43 +58,59 @@ public class WSEndPoint {
 	public void echoTextMessage(String message) {
 		
 		ObjectMapper mapper = new ObjectMapper();
-		Message msg;
+		Message msgObject;
+		
 		try {
-			msg = mapper.readValue(message, Message.class);
-			if(msg.getRecieverId().equals("all")) {
+			msgObject = mapper.readValue(message, Message.class);
+			if(msgObject.getRecieverId().equals("all")) {
 				//zatvori sesiju ako je logout
-				if(msg.getText().startsWith("[System]:logged out")){
+				if(msgObject.getText().startsWith("[System]:logged out")){
 					System.out.println("Prije brisanja: " + sessions.size());
-					close(sessions.get(new Long(msg.getSenderId())));
+					close(sessions.get(new Long(msgObject.getSenderId())));
 					System.out.println("Nakon brisanja: " + sessions.size());
-					sendToAll(msg.getText());
-					return;
 				}
 				//slanje poruke svima
-				sendToAll(msg.getText());
+				sendToAll(message);
 			} else {
 				//slanje poruke jednom useru
-				try {
-					if(sessions.containsKey(msg.getRecieverId())) {
-						sessions.get(msg.getRecieverId()).getBasicRemote().sendText(msg.getText());
-					}
-				} catch (IOException e){
-					e.printStackTrace();
-				}
+				sendToOneUser(msgObject, message);
 			}
 			
 		} catch (IOException e1) {
+			System.out.println("Error with message mapping.");
 			e1.printStackTrace();
 		}
 	}
 	
-	public void sendToAll(String text) {
+	public void sendToOneUser(Message messageObject, String message) {
 		try {
-			for(Session s: sessions.values()) {
-				System.out.println("WSEndPoint: "+ text);
-				s.getBasicRemote().sendText(text);
+			System.out.println(sessions);
+			if(sessions.containsKey(new Long(messageObject.getRecieverId()))) {
+				
+				Session session = sessions.get(new Long(messageObject.getRecieverId()));
+				if(session.isOpen()) {
+					session.getBasicRemote().sendText(message);
+				}
 			}
 		} catch (IOException e){
+			System.out.println("Error with sending message to one user.");
+			e.printStackTrace();
+		}
+	}
+	
+	public void sendToAll(String message) {
+		try {
+			for(Session s: sessions.values()) {
+				System.out.println("WSEndPoint: "+ message);
+				if(s.isOpen()) {
+					System.out.println("saljem sesiji");
+					s.getBasicRemote().sendText(message);					
+				} else {
+					System.out.println("ne saljem sesiji");
+				}
+			}
+		} catch (IOException e){
+			System.out.println("Error with sending message to all users.");
 			e.printStackTrace();
 		}
 	}
@@ -127,7 +143,7 @@ public class WSEndPoint {
         } 
   
         // Print the modified HashMap 
-        System.out.println("Modified HashMap: " + sessions); 
+        //System.out.println("Modified HashMap: " + sessions); 
 	}
 	
 	@OnError

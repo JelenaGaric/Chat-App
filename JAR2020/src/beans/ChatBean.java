@@ -46,6 +46,7 @@ import model.User;
 public class ChatBean {
 	
 	private ArrayList<User> loggedInUsers = new ArrayList<User>();
+	private ArrayList<Message> chatRoomMessages = new ArrayList<Message>();
 	
 	@Resource(mappedName = "java:/ConnectionFactory")
 	private ConnectionFactory connectionFactory;
@@ -60,43 +61,50 @@ public class ChatBean {
 	public Response login(User u) {
 		System.out.println("Tried to log in - user: " + u.getUsername());
 		
-		try{
-			HashMap<Long, User> users = loadUsers();
-			for(User user: users.values()) {
-				if(u.getUsername().equals(user.getUsername())) {
-					if(u.getPassword().equals(user.getPassword())) {
-						for(User loggedInUser : loggedInUsers) {
-							if(user.getId().equals(loggedInUser.getId())) {
-								System.out.println("Already logged in: " + loggedInUser.getUsername());
-								//vec je ulogovan , samo nastavi
-								return Response.ok(user, MediaType.APPLICATION_JSON).build();
-							}
-						}
-						
-						loggedInUsers.add(user);
-						
-						if(loggedInUsers.size()==0) {
-							System.out.println("No logged in users.");
-						}
-						for(User us: loggedInUsers) {
-							System.out.println("logged in "+us.getUsername());
-						}
-						
-						Message loginMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged in[" + String.valueOf(user.getId())+"]");
-						ObjectMapper mapper = new ObjectMapper();
-						String loginJson = mapper.writeValueAsString(loginMsg);
-						//slanje poruke svim sessionima preko mdb da se neko novi ulogoao
-						sendMessage(loginJson);
-						
+		HashMap<Long, User> users = loadUsers();
+		User loggedIn = null;
+		
+		for(User user: users.values()) {
+			if(u.getUsername().equals(user.getUsername())) {
+				if(u.getPassword().equals(user.getPassword())) {
+					if(loggedInUsers.contains(users)) {
+						//vec je ulogovan , samo nastavi
 						return Response.ok(user, MediaType.APPLICATION_JSON).build();
 					} else {
-						return Response.status(400).build();
+						loggedIn = user;
 					}
-				}
+				}	
 			}
+		}
+		
+
+		//ako ne postoji korisnik
+		if(loggedIn == null) {
 			return Response.status(400).build();
+		}
+		
+		//ako postoji, dodaj u listu ulogovanih
+		loggedInUsers.add(loggedIn);
+		
+		if(loggedInUsers.size()==0) {
+			System.out.println("No logged in users.");
+		}
+		for(User us: loggedInUsers) {
+			System.out.println("logged in users: "+us.getUsername());
+		}
+		
+		//slanje poruke svima preko mdb da se ulogovao novi korisnik
+		Message loginMsg = new Message("all", String.valueOf(loggedIn.getId()), "[System]:logged in[" + String.valueOf(loggedIn.getId())+"]");
+		ObjectMapper mapper = new ObjectMapper();
+		String loginJson;
+		try {
+			loginJson = mapper.writeValueAsString(loginMsg);
+
+			sendMessage(loginJson);
 			
-		} catch (Exception e) {
+			return Response.ok(loggedIn, MediaType.APPLICATION_JSON).build();
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return Response.status(400).build();
@@ -145,33 +153,52 @@ public class ChatBean {
 	public Response logout(@PathParam ("user") String username) {
 		System.out.println("Tried to log out - user: " + username);
 		User user = null;
+		
 		for(User u: loggedInUsers) {
 			if(u.getUsername().equals(username)) {
 				user = u;
 			}
 		}
-		try{
-			System.out.println("izlogovao se " + user.getUsername());
-			Message loginMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged out[" + String.valueOf(user.getId())+"]");
-			loggedInUsers.remove(user);
+		
+		if(user == null) {
+			return Response.status(400).build();
+		} else {
+			Message logoutMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged out[" + String.valueOf(user.getId())+"]");
 			ObjectMapper mapper = new ObjectMapper();
-			String logoutJson = mapper.writeValueAsString(loginMsg);
-			//slanje poruke svim sessionima preko mdb da se neko izlogovao
-			sendMessage(logoutJson);
+			String logoutJson;
+			try {
+				logoutJson = mapper.writeValueAsString(logoutMsg);
+				//slanje poruke svim sessionima preko mdb da se neko izlogovao
+				sendMessage(logoutJson);
+			} catch (JsonProcessingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			loggedInUsers.remove(user);
+			
+			//brisanje poruka ove sesije?
 			
 			if(loggedInUsers.size()==0) {
 				System.out.println("No logged in users.");
-			}
-			for(User u: loggedInUsers) {
-				System.out.println("logged in: " + u.getUsername());
+			} else {
+				for(User u: loggedInUsers) {
+					System.out.println("logged in: " + u.getUsername());
+				}
 			}
 			
-		}catch(Exception e){
-			e.printStackTrace();
-			return Response.status(400).build();
 		}
-
 		return Response.status(200).build();
+		
+	}
+	
+	@GET
+	@Path("/user/{id}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getUser(@PathParam ("id") Long id) {
+		HashMap<Long, User> users = loadUsers();
+		return Response.ok(users.get(id), MediaType.APPLICATION_JSON).build();
 	}
 	
 	@GET
@@ -196,7 +223,12 @@ public class ChatBean {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String post(String text) {
 		System.out.println("Recieved message (for all): " + text);
+		HashMap<Long, User> users = loadUsers();
+		Message message = stringToMesage(text);
+		users.get(new Long(message.getSenderId())).getMsgs().add(message);
 		sendMessage(text);
+		saveUsers(users);
+		chatRoomMessages.add(message);
 		return "OK";
 	}
 	
@@ -205,8 +237,31 @@ public class ChatBean {
 	@Produces(MediaType.TEXT_PLAIN)
 	public String sendMessageToUser(String msg) {
 		System.out.println("Recieved message: " + msg);
+		HashMap<Long, User> users = loadUsers();
+		Message message = stringToMesage(msg);
+		users.get(new Long(message.getSenderId())).getMsgs().add(message);
+		users.get(new Long(message.getRecieverId())).getMsgs().add(message);
 		sendMessage(msg);
+		saveUsers(users);
 		return "OK";
+	}
+	
+	@GET
+	@Path("/messages/chatroom")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getChatroomMessages(String msg) {
+		return Response.ok(chatRoomMessages, MediaType.APPLICATION_JSON).build();
+	}
+	
+	private Message stringToMesage(String messageString) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			return mapper.readValue(messageString, Message.class);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return new Message();
 	}
 	
 	//******************************************* Slanje poruke MDB-u *******************************************
