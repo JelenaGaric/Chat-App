@@ -4,10 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -15,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -144,7 +143,10 @@ public class ChatBean {
 	
 	public void registerHost(Host host) {
 		System.out.println("Register for host with ip: " + host.getAdress());
-		ResteasyClient client = new ResteasyClientBuilder().build();
+		ResteasyClient client = new ResteasyClientBuilder()
+				.establishConnectionTimeout(100, TimeUnit.SECONDS)
+				.socketTimeout(2, TimeUnit.SECONDS)
+				.build();
 		ResteasyWebTarget target = client.target("http://" + this.master + ":8080/WAR2020/rest/chat/registerHost");
 		Response response = target.request().post(Entity.entity(host, "application/json"));
 		client.close();
@@ -156,6 +158,7 @@ public class ChatBean {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Path("/registerHost")
 	public Response newHost(Host host) {
+		System.out.println("request for host registration arrived from " + host.getAdress());
 		for(Host h: hosts.getHosts()) {
 			if(!h.getAdress().equals(hosts.getCurrentHost().getAdress())) {
 				//slanje rest zahtjeva svim ostalim hostovima da dodaju novog u listu

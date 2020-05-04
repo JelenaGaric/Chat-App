@@ -3,7 +3,8 @@ var loggedIn = JSON.parse(window.localStorage.getItem('loggedIn'));
 var registeredUsers = [];
 var loggedInUsers = [];
 var previousLoggedInUsers = [];
-var host="ws://localhost:8080/WAR2020/ws/"+loggedIn.id;
+//var host="ws://localhost:8080/WAR2020/ws/"+loggedIn.id;
+var host="ws://169.254.209.90:8080/WAR2020/ws/"+loggedIn.id;
 
 $(document).ready(function(){
 	//popunjavanje liste registrovanih korisnika

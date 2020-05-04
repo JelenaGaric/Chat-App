@@ -65,9 +65,7 @@ public class WSEndPoint {
 			if(msgObject.getRecieverId().equals("all")) {
 				//zatvori sesiju ako je logout
 				if(msgObject.getText().startsWith("[System]:logged out")){
-					System.out.println("Prije brisanja: " + sessions.size());
 					close(sessions.get(new Long(msgObject.getSenderId())));
-					System.out.println("Nakon brisanja: " + sessions.size());
 				}
 				//slanje poruke svima
 				sendToAll(message);
@@ -103,10 +101,8 @@ public class WSEndPoint {
 			for(Session s: sessions.values()) {
 				System.out.println("WSEndPoint: "+ message);
 				if(s.isOpen()) {
-					System.out.println("saljem sesiji");
+					System.out.println("sending to session...");
 					s.getBasicRemote().sendText(message);					
-				} else {
-					System.out.println("ne saljem sesiji");
 				}
 			}
 		} catch (IOException e){
