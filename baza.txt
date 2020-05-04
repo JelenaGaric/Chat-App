@@ -1,0 +1,7 @@
+{"id":1,"username":"admin","password":"admin","role":"ADMIN","msgs":[],"host":null}
+{"id":2,"username":"user","password":"user","role":"USER","msgs":[{"recieverId":"3","senderId":"2","text":"ss","time":null},{"recieverId":"all","senderId":"2","text":"ss","time":null}],"host":null}
+{"id":3,"username":"proba","password":"proba","role":"USER","msgs":[{"recieverId":"all","senderId":"3","text":"dd","time":null},{"recieverId":"all","senderId":"3","text":"dsd","time":null},{"recieverId":"3","senderId":"2","text":"ss","time":null}],"host":null}
+{"id":4,"username":"user1","password":"user","role":"USER","msgs":[],"host":null}
+{"id":5,"username":"user2","password":"user","role":"USER","msgs":[],"host":null}
+{"id":6,"username":"user3","password":"user","role":"USER","msgs":[],"host":null}
+{"id":7,"username":"probaa","password":"proba","role":"USER","msgs":[],"host":null}
