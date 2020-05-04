@@ -2,8 +2,8 @@
 Projekat iz predmeta Agentske tehnologije
 
 Aplikacija radi na wildfly 11.0 serveru i Javi 1.8.
-Posto je u standalone-full-ha public interface izmijenjen tako da cuva ip adresu mog racunara (169.254.209.90), tako se ne konektujem na localhost:808/WAR2020 nego 169.254.209.90:8080/WAR2020.
-
+Posto je u standalone-full-ha public interface izmijenjen tako da cuva ip adresu mog racunara (169.254.209.90), tako se ne konektujem na localhost:8080/WAR2020 nego 169.254.209.90:8080/WAR2020.
+Takodje, ws je podesen na 169.254.209.90:8080 umjesto na localhost:8080 kako je ranije bilo (u main.js fajlu u web content folderu WAR projekta).
 Informacije o usernameu i passwordu za svakog korisnika su u "baza.txt", koji se cuva i ucitava sa desktopa, ali nalijepicu ih i ovdje. Mozete se ulogovati kao admin, ili user (kojih ima vise).
 Kao user mozete slati poruku na grupni chat (svima) i pojedinacnom korisniku.
 
