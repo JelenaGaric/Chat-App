@@ -15,6 +15,8 @@ public class User implements Serializable {
 	private ROLE role;
 	private ArrayList<Message> msgs = new ArrayList<>();
 	
+	private Host host;
+	
 	public Long getId() {
 		return id;
 	}
@@ -56,6 +58,14 @@ public class User implements Serializable {
 	public void setMsgs(ArrayList<Message> msgs) {
 		this.msgs = msgs;
 	}
+	
+	public Host getHost() {
+		return host;
+	}
+
+	public void setHost(Host host) {
+		this.host = host;
+	}
 
 	public User(Long id, String username, String password, ROLE role) {
 		super();
@@ -63,6 +73,16 @@ public class User implements Serializable {
 		this.username = username;
 		this.password = password;
 		this.role = role;
+	}
+	
+	public User(Long id, String username, String password, ROLE role, ArrayList<Message> msgs, Host host) {
+		super();
+		this.id = id;
+		this.username = username;
+		this.password = password;
+		this.role = role;
+		this.msgs = msgs;
+		this.host = host;
 	}
 
 	@Override

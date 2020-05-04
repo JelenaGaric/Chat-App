@@ -64,7 +64,6 @@ function generateChats(){
 				var chatList = document.createElement("DIV");
 				chatList.id = "chat"+u.id;
 				chatList.classList.add("chat_list");
-				console.log("chat id " + chatList.id)
 				var chatPeople = document.createElement("DIV");
 				chatList.classList.add("chat_people");
 
@@ -100,7 +99,6 @@ function generateChats(){
 				chatList.appendChild(chatPeople);
 				
 				chatList.onclick = function() {
-					
 					var activeChats = document.getElementsByClassName("active_chat");
 					for(let element of activeChats){
 						element.classList.remove("active_chat");
@@ -110,10 +108,13 @@ function generateChats(){
 					
 					chatList.classList.add("active_chat");
 					
-	                var msgHistory = document.getElementById("msgHistory");
-	                msgHistory.innerHTML = "";
+	                var msgHistory = document.getElementsByClassName("msg_history")[0];
+	                msgHistory.removeAttribute('id');
+	                msgHistory.id = "msgHistory"+u.id;
 
-					makePostBtnForOneUser(u.id);
+	                msgHistory.innerHTML = "";
+	                makePostBtnForOneUser(u.id);
+	                generateMessageHistory(u.id);
 				}
 				var inboxChat= document.getElementById("inboxChat");
 				inboxChat.appendChild(chatList);
@@ -137,6 +138,10 @@ function setupSocket(){
 		socket.onmessage = function(msg){
 			console.log("onmessage: Recieved: "+ msg.data);	
 			var message = JSON.parse(msg.data);
+			
+			var activeChat = document.getElementsByClassName("active_chat");
+			var active
+			
 			//osvjezenje liste ulogovanih
 			if(message.text.startsWith("[System]") && (message.text.includes("logged in") || message.text.includes("logged out"))){
 				console.log("refresh");
@@ -185,16 +190,29 @@ function showChatroom() {
 	removeNotifications(chatroomChatList);
 	chatroomChatList.classList.add("active_chat");
 	
-	var msgHistory = document.getElementById("msgHistory");
+	var msgHistory = document.getElementsByClassName("msg_history")[0];
+	console.log(msgHistory);
+	msgHistory.removeAttribute('id');
+	msgHistory.id = "msgHistory";
     msgHistory.innerHTML = "";
-    //msgHistory.innerHTML = "  <div class=\"incoming_msg\">\r\n              <div class=\"incoming_msg_img\"> <img src=\"https:\/\/ptetutorials.com\/images\/user-profile.png\" alt=\"sunil\"> <\/div>\r\n              <div class=\"received_msg\">\r\n                <div class=\"received_withd_msg\">\r\n                  <p>Test which is a new approach to have all\r\n                    solutions<\/p>\r\n                  <span class=\"time_date\"> 11:01 AM    |    June 9<\/span><\/div>\r\n              <\/div>\r\n            <\/div>\r\n            <div class=\"outgoing_msg\">\r\n              <div class=\"sent_msg\">\r\n                <p>Test which is a new approach to have all\r\n                  solutions<\/p>\r\n                <span class=\"time_date\"> 11:01 AM    |    June 9<\/span> <\/div>\r\n            <\/div>\r\n            <div class=\"incoming_msg\">\r\n              <div class=\"incoming_msg_img\"> <img src=\"https:\/\/ptetutorials.com\/images\/user-profile.png\" alt=\"sunil\"> <\/div>\r\n              <div class=\"received_msg\">\r\n                <div class=\"received_withd_msg\">\r\n                  <p>Test, which is a new approach to have<\/p>\r\n                  <span class=\"time_date\"> 11:01 AM    |    Yesterday<\/span><\/div>\r\n              <\/div>\r\n            <\/div>\r\n            <div class=\"outgoing_msg\">\r\n              <div class=\"sent_msg\">\r\n                <p>Apollo University, Delhi, India Test<\/p>\r\n                <span class=\"time_date\"> 11:01 AM    |    Today<\/span> <\/div>\r\n            <\/div>\r\n            <div class=\"incoming_msg\">\r\n              <div class=\"incoming_msg_img\"> <img src=\"https:\/\/ptetutorials.com\/images\/user-profile.png\" alt=\"sunil\"> <\/div>\r\n              <div class=\"received_msg\">\r\n                <div class=\"received_withd_msg\">\r\n                  <p>We work directly with our designers and suppliers,\r\n                    and sell direct to you, which means quality, exclusive\r\n                    products, at a price anyone can afford.<\/p>\r\n                  <span class=\"time_date\"> 11:01 AM    |    Today<\/span><\/div>\r\n              <\/div>\r\n            <\/div>"; 
+    makePostBtnForAll();
+    generateMessageHistory("chatroom");
     
-    $.get({
-		url:"rest/chat/messages/chatroom",
+}
+
+function generateMessageHistory(id){
+	let path = "rest/chat/messages/";
+	if(id == "chatroom")
+		path += "chatroom"
+	else
+		path += id+"/"+loggedIn.id;	
+	$.get({
+		url:path,
 		contentType:"application/json",
 		complete: function(data){
-			makePostBtnForAll();
+			
 			var messages = JSON.parse(data.responseText);
+			console.log(messages)
 			//generisemo samo 50 poruka
 			var messagesNum = 0;
 			if(messages.length > 50){
@@ -204,26 +222,24 @@ function showChatroom() {
 			}
 			for(var i = 0; i < messagesNum; i++){//let message of messages){
 				if(messages[i].senderId == loggedIn.id){
-					showSentMessage(messages[i].text);
+					showSentMessage(messages[i]);
 				} else {
 					generateIncomingMessage(messages[i]);
 				}
 			}
-			//msgHistory.innerHTML = "";
 		}
     });
     
-    
 }
 
-function showSentMessage(text){
-	var msgHistory = document.getElementById("msgHistory");
+
+function generateSentHTML(message, msgHistory){
 	var outgoingMsg = document.createElement("DIV");
 	outgoingMsg.classList.add("outgoing_msg");
 	var sentMsg = document.createElement("DIV");
 	sentMsg.classList.add("sent_msg");
 	var textP = document.createElement("P");
-	textP.innerHTML = text;
+	textP.innerHTML = message.text;
 	var span = document.createElement("SPAN");
 	span.classList.add("time_date");
 	span.innerHTML = "11:01 AM    |    June 9";
@@ -236,6 +252,19 @@ function showSentMessage(text){
 	var inboxChat = document.querySelector('.msg_history');
 	inboxChat.scrollTop = inboxChat.scrollHeight - inboxChat.clientHeight;
 
+}
+
+function showSentMessage(message){	
+	var msgHistory = document.getElementsByClassName("msg_history")[0];
+	if(message.recieverId == "all" || message.recieverId == null){
+		if(msgHistory.id == "msgHistory"){
+			generateSentHTML(message, msgHistory);
+		}
+	} else {
+		if(msgHistory.id == "msgHistory"+message.recieverId){
+			generateSentHTML(message, msgHistory);
+		}
+	}
 }
 
 function makeNotification(message){
@@ -252,7 +281,6 @@ function makeNotification(message){
 				notification.id = "notification"+message.senderId;
 				notification.classList.add("notification");
 				notification.innerHTML = "New messages!";
-				console.log(h)
 				h.appendChild(notification);
 			}
 
@@ -267,7 +295,6 @@ function makeNotification(message){
 				notification.classList.add("notification");
 				notification.id = "notificationChatroom";
 				notification.innerHTML = "New messages!";
-				console.log(h)
 				h.appendChild(notification);
 			}
 
@@ -297,8 +324,7 @@ function showIncomingMessage(message, flag){
 
 }
 
-function generateIncomingMessage(message){
-	var msgHistory = document.getElementById("msgHistory");
+function generateIncomingHTML(message, msgHistory){
 	var incomingMsg = document.createElement("DIV");
 	incomingMsg.classList.add("incoming_msg");
 	
@@ -335,7 +361,25 @@ function generateIncomingMessage(message){
 	
 	var inboxChat = document.querySelector('.msg_history');
 	inboxChat.scrollTop = inboxChat.scrollHeight - inboxChat.clientHeight;
+
+
 }
+
+function generateIncomingMessage(message){
+	
+	var msgHistory = document.getElementsByClassName("msg_history")[0];
+	
+	if(message.recieverId == "all" || message.recieverId == null){
+		if(msgHistory.id == "msgHistory"){
+			generateIncomingHTML(message, msgHistory);
+		}
+	}
+	else {
+		if(msgHistory.id == "msgHistory"+message.senderId){
+			generateIncomingHTML(message, msgHistory);
+			}
+		}
+	}
 
 function findUser(id){
 	for(let user of registeredUsers){
@@ -352,14 +396,15 @@ function makePostBtnForAll(){
 		let text = document.getElementById("msgTextBox").value;
 		let recieverId = "all";
 		let senderId = loggedIn.id;
+		var messageJSON = JSON.stringify({recieverId,senderId,text});
 		$.post({
 			url:"rest/chat/messages/all",
-			data: JSON.stringify({recieverId,senderId,text}),
+			data: messageJSON,
 			contentType:"application/json",
 			dataType:"json",
-			complete:function(data){
+			complete:function(){
 				console.log("sent message to the server");
-				showSentMessage(text)
+				showSentMessage(JSON.parse(messageJSON))
 				$.get({
 					url:"rest/chat/user/"+loggedIn.id,
 					contentType:"application/json",
@@ -378,14 +423,15 @@ function makePostBtnForOneUser(userId){
 			let text = document.getElementById("msgTextBox").value;
 			let recieverId = userId;
 			let senderId = loggedIn.id;
+			var messageJSON = JSON.stringify({recieverId,senderId,text});
 			$.post({
 				url:"rest/chat/messages/toUser",
-				data: JSON.stringify({recieverId,senderId,text}),
+				data: messageJSON,
 				contentType:"application/json",
 				dataType:"json",
-				complete:function(data){
+				complete:function(){
 					console.log("Sent a message to the user with id: " + userId);
-					showSentMessage(text);
+					showSentMessage(JSON.parse(messageJSON));
 				}
 			});
 		}); 

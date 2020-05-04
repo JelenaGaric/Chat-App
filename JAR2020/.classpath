@@ -15,5 +15,6 @@
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
 	<classpathentry kind="lib" path="D:/agentske tehnologije/jackson-core-2.1.1.jar"/>
 	<classpathentry kind="lib" path="D:/agentske tehnologije/jackson-databind-2.1.1.jar"/>
+	<classpathentry kind="lib" path="D:/agentske tehnologije/jboss-vfs-3.1.0.Final.jar"/>
 	<classpathentry kind="output" path="build/classes"/>
 </classpath>

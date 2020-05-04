@@ -2,15 +2,23 @@ package beans;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Properties;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import javax.ejb.EJB;
 import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
 import javax.jms.ConnectionFactory;
@@ -20,8 +28,6 @@ import javax.jms.QueueSender;
 import javax.jms.QueueSession;
 import javax.jms.Session;
 import javax.jms.TextMessage;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -29,16 +35,23 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import hosts.Hosts;
+import model.Host;
 import model.Message;
 import model.ROLE;
 import model.User;
+import utils.FileUtils;
 
 @Stateless
 @Path("/chat")
@@ -47,13 +60,164 @@ public class ChatBean {
 	
 	private ArrayList<User> loggedInUsers = new ArrayList<User>();
 	private ArrayList<Message> chatRoomMessages = new ArrayList<Message>();
-	
+	private String master = null;
+	private String nodeName;
+	private String nodeAddress;
+
+	@EJB
+	private Hosts hosts;
 	@Resource(mappedName = "java:/ConnectionFactory")
 	private ConnectionFactory connectionFactory;
 	@Resource(mappedName = "java:/jboss/exported/jms/queue/mojQueue")
 	private Queue queue;
+	
+	//************************************************Pravljenje hosta****************************************************************
+	@PostConstruct
+	public void postConstruct() {
+		System.out.println("Novi host");
+		 InetAddress ip;
+	     String hostname;
+	        try {
+	            ip = InetAddress.getLocalHost();
+	            hostname = ip.getHostName();
+	            System.out.println("Your current IP address : " + ip);
+	            System.out.println("Your current Hostname : " + hostname);
+	            Host host = new Host(ip.getHostAddress(), ip.getHostName());
+	            
+//	        	MBeanServer mbServer = ManagementFactory.getPlatformMBeanServer();
+//				ObjectName http = new ObjectName("jboss.as:socket-binding-group=standard-sockets,socket-binding=http");
+//				String nodeAddress = (String) mbServer.getAttribute(http, "boundAddress");
+//				String nodeName = System.getProperty("jboss.node.name") + ":8080";
+//				Host host = new Host(nodeAddress, nodeName);
+				System.out.println("Novi host, alias: " + host.getAlias() + ", adresa:" + host.getAdress());
+				
+	            File f = FileUtils.getFile(ChatBean.class, "", "connection.properties");
+				FileInputStream fileInput = new FileInputStream(f);
+				Properties properties = new Properties();
+	            properties.load(fileInput);
+				fileInput.close();
+				this.master = properties.getProperty("master");
+				System.out.println("Master : " + master);
+				
+				if (master != null && !master.equals("")) {
+					System.out.println("Already have a master host, handshake method in process...");
+					handshake(host);
+				} else {
+					hosts.setMasterHost(host);
+					//dodati u listu hostova
+					hosts.getHosts().add(host);
+				}
+				//postaviti trenutni host
+				hosts.setCurrentHost(host);
+	        } catch (UnknownHostException e) {
+	 
+	            e.printStackTrace();
+	        } catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+//			} catch (MalformedObjectNameException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (InstanceNotFoundException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (AttributeNotFoundException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (ReflectionException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (MBeanException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+			}
+		
+	}
+	
+	public void handshake(Host host) {
+		registerHost(host);
+		
+	}
+	
+	public void registerHost(Host host) {
+		System.out.println("Register for host with ip: " + host.getAdress());
+		ResteasyClient client = new ResteasyClientBuilder().build();
+		ResteasyWebTarget target = client.target("http://" + this.master + ":8080/WAR2020/rest/chat/registerHost");
+		Response response = target.request().post(Entity.entity(host, "application/json"));
+		client.close();
+		System.out.println("Host registered");
+		
+	}
+	
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/registerHost")
+	public Response newHost(Host host) {
+		for(Host h: hosts.getHosts()) {
+			if(!h.getAdress().equals(hosts.getCurrentHost().getAdress())) {
+				//slanje rest zahtjeva svim ostalim hostovima da dodaju novog u listu
+				ResteasyClient client = new ResteasyClientBuilder().build();
+				ResteasyWebTarget target = client.target("http://" + h.getAdress() + ":8080/WAR2020/rest/chat/node");
+				Response responseNode = target.request().post(Entity.entity(host, "application/json"));
+				client.close();
+				System.out.println("added host with ip "+ host.getAdress() +" to host with ip " + h.getAdress());
+			}
+		}
+		hosts.getHosts().add(host);
+		System.out.println("host registered within all hosts");
+		
+		ResteasyClient client = new ResteasyClientBuilder().build();
+		ResteasyWebTarget target = client.target("http://" + host.getAdress() + ":8080/WAR2020/rest/chat/nodes");
+		Response response = target.request().post(Entity.entity(this.hosts.getHosts(), "application/json"));
+		client.close();
+		System.out.println("sent nodes to new host!");
+		
+		sendLoggedIn(host);
+		return Response.status(200).build();
+	
+	}	
+	
+	public void sendLoggedIn(Host host) {
+		ResteasyClient client = new ResteasyClientBuilder().build();
+		ResteasyWebTarget target = client.target("http://" + host.getAdress() + ":8080/WAR2020/rest/chat/node/users/loggedIn");
+		Response response = target.request().post(Entity.entity(loggedInUsers, "application/json"));
+		System.out.println("sent logged in list to host with ip: " + host.getAdress());
+		client.close();
+	}
 
-
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/node")
+	public Response addHost(Host host) {
+		hosts.getHosts().add(host);
+		System.out.println("host added for host " + hosts.getCurrentHost().getAdress());
+		return Response.status(200).build();
+	
+	}	
+	
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/node/users/loggedIn")
+	public Response sendLoggedIn(ArrayList<User> loggedIn) {
+		this.loggedInUsers = loggedIn;
+		System.out.println("set logged in users for host " + hosts.getCurrentHost().getAdress());
+		return Response.status(200).build();
+	}	
+	
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/nodes")
+	public Response sendNodesToHost(ArrayList<Host> nodes) {
+		hosts.setHosts(nodes);
+		System.out.println("set hosts for host: " + hosts.getCurrentHost().getAdress());
+		return Response.status(200).build();
+	
+	}	
+	//*******************************************************************************************************************************
+	
 	@POST
 	@Path("/users/login")
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -94,7 +258,7 @@ public class ChatBean {
 		}
 		
 		//slanje poruke svima preko mdb da se ulogovao novi korisnik
-		Message loginMsg = new Message("all", String.valueOf(loggedIn.getId()), "[System]:logged in[" + String.valueOf(loggedIn.getId())+"]");
+		Message loginMsg = new Message("all", String.valueOf(loggedIn.getId()), "[System]:logged in[" + String.valueOf(loggedIn.getId())+"]", new Date());
 		ObjectMapper mapper = new ObjectMapper();
 		String loginJson;
 		try {
@@ -163,7 +327,7 @@ public class ChatBean {
 		if(user == null) {
 			return Response.status(400).build();
 		} else {
-			Message logoutMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged out[" + String.valueOf(user.getId())+"]");
+			Message logoutMsg = new Message("all", String.valueOf(user.getId()), "[System]:logged out[" + String.valueOf(user.getId())+"]", new Date());
 			ObjectMapper mapper = new ObjectMapper();
 			String logoutJson;
 			try {
@@ -263,6 +427,37 @@ public class ChatBean {
 		}
 		return new Message();
 	}
+	
+	@GET
+	@Path("/messages/{id}/{loggedInId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getMessagesWitId(@PathParam ("id") Long id, @PathParam ("loggedInId") Long loggedInId) {
+		ArrayList<Message> messages = new ArrayList<Message>();
+		
+		HashMap<Long, User> users = loadUsers();
+		User loggedIn = users.get(loggedInId);
+		User u = users.get(id);
+		System.out.println(u.getUsername() + " i " + loggedIn.getUsername());
+		for(Message m : loggedIn.getMsgs()) {
+			if(!m.getRecieverId().equals("all")) {
+				if(new Long(m.getRecieverId()).equals(u.getId())) {
+					messages.add(m);
+					System.out.println("PORUKA "+m.getText());
+				}
+			}
+		}
+		for(Message m : u.getMsgs()) {
+			if(!m.getRecieverId().equals("all")) {
+				if(new Long(m.getRecieverId()).equals(loggedIn.getId())) {
+					System.out.println("PORUKA "+m.getText());
+	
+					messages.add(m);
+				}
+			}
+		}
+		return Response.ok(messages, MediaType.APPLICATION_JSON).build();
+	}
+	
 	
 	//******************************************* Slanje poruke MDB-u *******************************************
 	private void sendMessage(String text) {

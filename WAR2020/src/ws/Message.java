@@ -1,10 +1,13 @@
 package ws;
 
+import java.util.Date;
+
 public class Message {
 	private String recieverId;
 	private String senderId;
 	private String text;
-	
+	private Date time;
+
 	public Message() {
 		super();
 	}
@@ -15,6 +18,23 @@ public class Message {
 		this.senderId = senderId;
 		this.text = text;
 	}
+	
+	public Message(String recieverId, String senderId, String text, Date time) {
+		super();
+		this.recieverId = recieverId;
+		this.senderId = senderId;
+		this.text = text;
+		this.time = time;
+	}
+
+	public Date getTime() {
+		return time;
+	}
+
+	public void setTime(Date time) {
+		this.time = time;
+	}
+
 	public String getRecieverId() {
 		return recieverId;
 	}
